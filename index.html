@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EduQuest Online - World Prototype</title>
+    <meta
+      name="description"
+      content="Browser MMORPG tactical grid prototype for EduQuest Online."
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="game-shell" aria-label="EduQuest Online game prototype">
+      <header class="top-hud">
+        <section class="hero-status" aria-label="Character status">
+          <div class="portrait" aria-hidden="true">
+            <img src="assets/world-crest.svg" alt="" />
+          </div>
+          <div class="hero-copy">
+            <div class="eyebrow">EDUQUEST ONLINE</div>
+            <h1>Arin เวทพิทักษ์ Lv.12</h1>
+            <div class="city-line">
+              <span id="homeCityBadge" class="city-badge north">North</span>
+              <span id="positionText">ตำแหน่ง 8, 1</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="resource-strip" aria-label="Core resources">
+          <div class="meter hp">
+            <span>HP</span>
+            <strong id="hpText">820/820</strong>
+            <i style="--value: 100%"></i>
+          </div>
+          <div class="meter mp">
+            <span>MP</span>
+            <strong id="mpText">440/440</strong>
+            <i style="--value: 100%"></i>
+          </div>
+          <div class="meter energy">
+            <span>Energy</span>
+            <strong id="energyText">12/12</strong>
+            <i id="energyFill" style="--value: 100%"></i>
+          </div>
+        </section>
+
+        <section class="currency-strip" aria-label="Currencies">
+          <div><span>ทอง</span><strong id="goldText">1,280</strong></div>
+          <div><span>เพชร</span><strong>42</strong></div>
+          <div><span>หยดเลือด</span><strong id="bloodText">7</strong></div>
+          <button id="logoutButton" class="icon-button" type="button" title="Logout settings">
+            ⏻
+          </button>
+        </section>
+      </header>
+
+      <section class="play-space">
+        <aside class="side-panel left-panel" aria-label="Objectives and events">
+          <div class="panel-section">
+            <div class="section-title">ภารกิจเมือง</div>
+            <div class="objective-list">
+              <button class="objective active" type="button">
+                <span class="pin"></span>
+                ยึดพื้นที่ว่าง 1 ช่อง
+              </button>
+              <button class="objective" type="button">
+                <span class="pin"></span>
+                เก็บแร่อักษร 3 ชิ้น
+              </button>
+              <button class="objective" type="button">
+                <span class="pin"></span>
+                ตอบคำถามเพื่อเดินไกล
+              </button>
+            </div>
+          </div>
+
+          <div class="panel-section">
+            <div class="section-title">บันทึกโลก</div>
+            <div id="eventLog" class="event-log" aria-live="polite"></div>
+          </div>
+        </aside>
+
+        <section class="map-stage" aria-label="World map">
+          <div class="map-toolbar">
+            <div>
+              <span class="tiny-label">World Map</span>
+              <strong>กลางโลกและ 4 เมืองเกิด</strong>
+            </div>
+            <div class="toolbar-actions">
+              <button id="quizButton" class="tool-button" type="button" title="ตอบคำถามเพื่อเพิ่มระยะเดิน">
+                ? <span>Quiz Move</span>
+              </button>
+              <button id="mountButton" class="tool-button" type="button" title="สลับสัตว์ขี่">
+                ◈ <span id="mountText">ม้า +2</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="map-wrap">
+            <div id="worldGrid" class="world-grid" aria-label="Tile grid"></div>
+          </div>
+
+          <div class="map-legend" aria-label="Map legend">
+            <span><i class="legend north"></i>North</span>
+            <span><i class="legend south"></i>South</span>
+            <span><i class="legend east"></i>East</span>
+            <span><i class="legend west"></i>West</span>
+            <span><i class="legend neutral"></i>Neutral</span>
+            <span><i class="legend danger"></i>PvP</span>
+          </div>
+        </section>
+
+        <aside class="side-panel right-panel" aria-label="Tile details">
+          <div class="panel-section tile-card">
+            <div class="section-title">ข้อมูลช่อง</div>
+            <div id="tileName" class="tile-name">เลือกช่องบนแผนที่</div>
+            <dl class="tile-stats">
+              <div>
+                <dt>เจ้าของ</dt>
+                <dd id="tileOwner">-</dd>
+              </div>
+              <div>
+                <dt>เขต</dt>
+                <dd id="tileZone">-</dd>
+              </div>
+              <div>
+                <dt>สิ่งที่พบ</dt>
+                <dd id="tileContent">-</dd>
+              </div>
+              <div>
+                <dt>ความเสี่ยง</dt>
+                <dd id="tileRisk">-</dd>
+              </div>
+            </dl>
+            <div class="action-grid">
+              <button id="moveAction" class="action-button" type="button">เดิน</button>
+              <button id="gatherAction" class="action-button" type="button">เก็บ</button>
+              <button id="attackAction" class="action-button danger" type="button">โจมตี</button>
+              <button id="claimAction" class="action-button claim" type="button">ยึด</button>
+            </div>
+          </div>
+
+          <div class="panel-section">
+            <div class="section-title">Combat Lock</div>
+            <div class="lock-card">
+              <div id="combatLockRing" class="lock-ring">0</div>
+              <div>
+                <strong id="combatState">ปลอดภัย</strong>
+                <p id="combatHint">ยังสามารถ Safe Logout และขึ้นสัตว์ขี่ได้</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-section">
+            <div class="section-title">Offline Guard</div>
+            <label class="toggle-row">
+              <span>ให้ตัวละครอยู่เฝ้าที่เดิมเมื่อออกเกม</span>
+              <input id="offlineGuardToggle" type="checkbox" checked />
+            </label>
+            <div class="guard-loadout">
+              <span>สวนกลับ:</span>
+              <b>Arc Bolt</b>
+              <b>Mana Shield</b>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <footer class="bottom-hud">
+        <section class="skill-bar" aria-label="Skill bar">
+          <button class="skill ready" type="button" title="Arc Bolt">1</button>
+          <button class="skill ready" type="button" title="Mana Shield">2</button>
+          <button class="skill" type="button" title="Root Field">3</button>
+          <button class="skill" type="button" title="Blink Step">4</button>
+          <button class="skill ultimate" type="button" title="Nexus Bind">R</button>
+        </section>
+        <section class="quick-panels" aria-label="Quick panels">
+          <button id="inventoryTab" class="tab-button active" type="button">กระเป๋า</button>
+          <button id="mountTab" class="tab-button" type="button">สัตว์ขี่</button>
+          <button id="petTab" class="tab-button" type="button">สัตว์เลี้ยง</button>
+          <button id="craftTab" class="tab-button" type="button">คราฟต์</button>
+        </section>
+        <section id="quickPanel" class="quick-panel" aria-live="polite"></section>
+      </footer>
+    </main>
+
+    <dialog id="cityDialog" class="modal">
+      <form method="dialog">
+        <div class="modal-head">
+          <div>
+            <span class="tiny-label">Character Start</span>
+            <h2>เลือกเมืองเกิด</h2>
+          </div>
+          <button class="icon-button" value="close" type="submit" title="ปิด">×</button>
+        </div>
+        <div class="city-grid" id="cityGrid"></div>
+      </form>
+    </dialog>
+
+    <dialog id="logoutDialog" class="modal">
+      <form method="dialog">
+        <div class="modal-head">
+          <div>
+            <span class="tiny-label">Logout Mode</span>
+            <h2>ตั้งค่าออกเกม</h2>
+          </div>
+          <button class="icon-button" value="close" type="submit" title="ปิด">×</button>
+        </div>
+        <div class="logout-options">
+          <label class="logout-option">
+            <input name="logoutMode" type="radio" value="safe" />
+            <span>
+              <strong>Safe Logout</strong>
+              <small>ตัวละครหายจากโลกเมื่อไม่ติด Combat Lock</small>
+            </span>
+          </label>
+          <label class="logout-option">
+            <input name="logoutMode" type="radio" value="guard" checked />
+            <span>
+              <strong>Offline Guard</strong>
+              <small>ตัวละครยืนที่เดิมและใช้สกิลสวนกลับตามพลังงาน</small>
+            </span>
+          </label>
+        </div>
+        <button class="primary-button" value="save" type="submit">บันทึกค่าออกเกม</button>
+      </form>
+    </dialog>
+
+    <script src="app.js"></script>
+  </body>
+</html>
