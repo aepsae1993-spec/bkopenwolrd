@@ -583,6 +583,7 @@ The playable map uses an isometric 2.5D renderer instead of a flat square grid. 
 - Resource node icons are anchored at the center of their diamond tile, rather than a rectangular tile corner, so the visual marker always matches the interactable coordinate.
 - Ground layers do not extend beyond their diamond tile. Only intentional world props such as trees, peaks, cities, and characters may rise above the board.
 - Prototype ground tiles use a fixed 100x56 diamond footprint with no extruded side layer; ownership and PvP borders are inset inside that footprint.
+- Legacy rectangular biome backgrounds are disabled in the isometric renderer. Resource nodes render as upright world props with a ground shadow and visible tier badge above the tile.
 
 ## 26. TODO
 

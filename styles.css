@@ -1411,6 +1411,11 @@ dd {
   isolation: isolate;
 }
 
+/* Legacy square-biome backgrounds must never paint behind the diamond surface. */
+.world-grid .tile {
+  background: transparent !important;
+}
+
 .tile:hover,
 .tile.selected {
   outline: 0;
@@ -1722,13 +1727,74 @@ dd {
   box-shadow: 0 4px 0 rgba(0, 0, 0, 0.24);
 }
 
-.tile .unit.resource {
-  right: auto;
-  bottom: 13px;
-  left: 50%;
-  transform: translateX(-50%);
-}
 .tile .unit.monster { top: -6px; right: 9px; }
+
+.resource-model {
+  position: absolute;
+  z-index: 9;
+  bottom: 17px;
+  left: 50%;
+  width: 54px;
+  height: 66px;
+  transform: translateX(-50%);
+  transform-origin: center bottom;
+  pointer-events: none;
+}
+
+.resource-shadow {
+  position: absolute;
+  z-index: 0;
+  bottom: 0;
+  left: 50%;
+  width: 35px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(3, 22, 24, 0.42);
+  transform: translateX(-50%);
+  filter: blur(1px);
+}
+
+.resource-visual {
+  position: absolute;
+  z-index: 1;
+  bottom: 4px;
+  left: 50%;
+  font-size: 2.65rem;
+  line-height: 1;
+  transform: translateX(-50%);
+  transform-origin: center bottom;
+  filter: drop-shadow(0 5px 2px rgba(0, 0, 0, 0.45));
+  animation: resourceIdle 2.6s ease-in-out infinite;
+}
+
+.resource-tier {
+  position: absolute;
+  z-index: 2;
+  top: 4px;
+  right: -1px;
+  display: grid;
+  place-items: center;
+  width: 19px;
+  height: 19px;
+  border: 2px solid #f8fff7;
+  border-radius: 50%;
+  background: #168b70;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 2px 7px rgba(0, 0, 0, 0.42);
+}
+
+.resource-model.tier-2 .resource-tier { background: #337fc2; }
+.resource-model.tier-3 .resource-tier { background: #8857c7; }
+.resource-model.resource-stone .resource-visual { font-size: 2.35rem; }
+.resource-model.resource-crystal .resource-visual { filter: drop-shadow(0 0 8px rgba(164, 226, 255, 0.95)); }
+
+@keyframes resourceIdle {
+  0%, 100% { transform: translateX(-50%) translateY(0) rotate(-1deg); }
+  50% { transform: translateX(-50%) translateY(-3px) rotate(1deg); }
+}
 
 .tile .character-model {
   z-index: 10;
@@ -1773,4 +1839,8 @@ dd {
 @media (max-width: 640px) {
   .map-wrap { padding: 10px; }
   .world-grid { margin: 4px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .resource-visual { animation: none; }
 }

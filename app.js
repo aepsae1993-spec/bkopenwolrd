@@ -68,7 +68,7 @@ const terrainGlyphs = {
 const gatherYieldByLevel = [10, 12, 15, 18, 21];
 const resourceRespawnMs = 30 * 60 * 1000;
 const resourceProfiles = [
-  { id: "wood", name: "ไม้", icon: "🪵", tier: 1, maxQuantity: 120, yieldMultiplier: 1, terrains: ["forest", "grass"] },
+  { id: "wood", name: "ไม้", icon: "🌲", tier: 1, maxQuantity: 120, yieldMultiplier: 1, terrains: ["forest", "grass"] },
   { id: "herb", name: "สมุนไพร", icon: "🌿", tier: 1, maxQuantity: 100, yieldMultiplier: 0.9, terrains: ["forest", "grass", "snow"] },
   { id: "stone", name: "หิน", icon: "🪨", tier: 1, maxQuantity: 110, yieldMultiplier: 0.85, terrains: ["mountain", "desert"] },
   { id: "hardwood", name: "ไม้แก่น", icon: "🌳", tier: 2, maxQuantity: 90, yieldMultiplier: 0.7, terrains: ["forest"] },
@@ -360,7 +360,7 @@ function renderGrid() {
     button.append(isoElement("iso-side"), isoElement("tile-rim"), isoElement("iso-floor"), createIsoScene(tile));
     for (const edge of cityEdges) button.appendChild(isoElement(`zone-edge edge-${edge}`));
 
-    if (tile.resource) button.appendChild(unit(tile.resource.icon, `resource tier-${tile.resource.tier}`));
+    if (tile.resource) button.appendChild(resourceModel(tile.resource));
     if (tile.monster) button.appendChild(unit("☠", "monster"));
     if (tile.enemyPlayer) button.appendChild(characterModel(tile.enemyPlayer.guard ? "guard" : "enemy", tile.enemyPlayer.name));
     if (tile.x === state.player.x && tile.y === state.player.y) button.appendChild(characterModel("player", "Arin"));
@@ -458,6 +458,23 @@ function unit(label, className) {
   span.className = `unit ${className}`;
   span.textContent = label;
   return span;
+}
+
+function resourceModel(resource) {
+  const model = document.createElement("span");
+  const shadow = document.createElement("span");
+  const visual = document.createElement("span");
+  const tier = document.createElement("span");
+  model.className = `resource-model resource-${resource.id} tier-${resource.tier}`;
+  model.setAttribute("role", "img");
+  model.setAttribute("aria-label", `${resource.name} Tier ${resource.tier}`);
+  shadow.className = "resource-shadow";
+  visual.className = "resource-visual";
+  visual.textContent = resource.icon;
+  tier.className = "resource-tier";
+  tier.textContent = resource.tier;
+  model.append(shadow, visual, tier);
+  return model;
 }
 
 function selectTile(tile) {
