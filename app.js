@@ -1,6 +1,10 @@
 const size = 31;
 const center = Math.floor(size / 2);
 const viewRadius = 10;
+const isoTileWidth = 100;
+const isoTileHeight = 56;
+const isoHalfWidth = isoTileWidth / 2;
+const isoHalfHeight = isoTileHeight / 2;
 
 const cities = {
   north: {
@@ -264,18 +268,72 @@ function isPvp(tile) {
   return tile.zone !== "Safe City";
 }
 
+function isoPosition(tile, bounds) {
+  const localX = tile.x - bounds.minX;
+  const localY = tile.y - bounds.minY;
+  return {
+    x: (localX - localY) * isoHalfWidth + (bounds.span - 1) * isoHalfWidth,
+    y: (localX + localY) * isoHalfHeight,
+    depth: (localX + localY) * 10 + localX,
+  };
+}
+
+function isoElement(className) {
+  const element = document.createElement("span");
+  element.className = className;
+  element.setAttribute("aria-hidden", "true");
+  return element;
+}
+
+function createIsoScene(tile) {
+  const scene = isoElement(`iso-scene ${tile.terrain}`);
+  if (tile.city) {
+    scene.classList.add("settlement");
+    for (let index = 0; index < 3; index += 1) scene.appendChild(isoElement(`iso-house house-${index + 1}`));
+    const banner = isoElement("city-banner");
+    banner.textContent = cities[tile.city].glyph;
+    scene.appendChild(banner);
+    return scene;
+  }
+
+  if (tile.zone === "Center War") {
+    scene.classList.add("world-monument");
+    scene.append(isoElement("monument-spire"), isoElement("monument-ring"));
+    return scene;
+  }
+
+  if (tile.terrain === "forest" || (tile.terrain === "grass" && (tile.x * 7 + tile.y) % 4 === 0)) {
+    scene.classList.add("tree-grove");
+    for (let index = 0; index < (tile.terrain === "forest" ? 3 : 1); index += 1) scene.appendChild(isoElement(`iso-tree tree-${index + 1}`));
+  } else if (tile.terrain === "mountain" || tile.terrain === "snow") {
+    scene.classList.add("peak-scene");
+    scene.append(isoElement("iso-peak peak-back"), isoElement("iso-peak peak-front"));
+  } else if (tile.terrain === "water") {
+    scene.classList.add("water-scene");
+    scene.append(isoElement("wave wave-one"), isoElement("wave wave-two"));
+  } else if (tile.terrain === "desert") {
+    scene.classList.add("dune-scene");
+    scene.append(isoElement("dune dune-one"), isoElement("dune dune-two"));
+  }
+  return scene;
+}
+
 function renderGrid() {
   elements.grid.innerHTML = "";
   const bounds = viewportBounds();
-  elements.grid.style.setProperty("--grid-columns", bounds.span);
+  elements.grid.style.width = `${bounds.span * isoTileWidth}px`;
+  elements.grid.style.height = `${bounds.span * isoTileHeight + isoTileHeight}px`;
   const range = moveRange();
   for (const tile of visibleTiles()) {
     const button = document.createElement("button");
+    const position = isoPosition(tile, bounds);
     button.className = `tile ${tile.terrain} ${zoneClass(tile.zone)} ${isPvp(tile) ? "pvp-zone" : "safe-zone"} ${tile.owner ? `owner-${tile.owner}` : "owner-neutral"}`;
     button.type = "button";
     button.dataset.x = tile.x;
     button.dataset.y = tile.y;
-    button.style.setProperty("--owner", tile.owner ? cities[tile.owner].owner : "transparent");
+    button.style.setProperty("--iso-x", `${position.x}px`);
+    button.style.setProperty("--iso-y", `${position.y}px`);
+    button.style.zIndex = String(position.depth);
     button.setAttribute("aria-label", `ช่อง ${tile.x},${tile.y}`);
 
     if (tile.zone === "Center War") button.classList.add("center");
@@ -286,20 +344,7 @@ function renderGrid() {
       button.classList.add(state.quizReady ? "quiz-reachable" : "reachable");
     }
 
-    const glyph = document.createElement("span");
-    glyph.className = "glyph";
-    if (tile.city) {
-      glyph.classList.add("city-glyph");
-      glyph.dataset.label = cities[tile.city].glyph;
-      glyph.textContent = "🏰";
-    } else if (tile.zone === "Center War") {
-      glyph.classList.add("center-glyph");
-      glyph.textContent = "✦";
-    } else {
-      glyph.classList.add("terrain-glyph");
-      glyph.textContent = terrainGlyphs[tile.terrain] || "·";
-    }
-    button.appendChild(glyph);
+    button.append(isoElement("iso-side"), isoElement("tile-rim"), isoElement("iso-floor"), createIsoScene(tile));
 
     if (tile.resource) button.appendChild(unit(tile.resource.icon, `resource tier-${tile.resource.tier}`));
     if (tile.monster) button.appendChild(unit("☠", "monster"));
@@ -311,11 +356,20 @@ function renderGrid() {
   }
 
   requestAnimationFrame(() => {
-    const playerTile = elements.grid.querySelector(`[data-x="${state.player.x}"][data-y="${state.player.y}"]`);
     const mapWrap = elements.grid.parentElement;
-    if (!playerTile || !mapWrap) return;
-    mapWrap.scrollLeft = playerTile.offsetLeft - mapWrap.clientWidth / 2 + playerTile.offsetWidth / 2;
-    mapWrap.scrollTop = playerTile.offsetTop - mapWrap.clientHeight / 2 + playerTile.offsetHeight / 2;
+    if (!mapWrap) return;
+    const playerPosition = isoPosition(state.player, bounds);
+    mapWrap.scrollLeft = playerPosition.x - mapWrap.clientWidth / 2 + isoTileWidth / 2;
+    mapWrap.scrollTop = playerPosition.y - mapWrap.clientHeight / 2 + isoTileHeight / 2;
+
+    // Absolute isometric tiles create an uneven scroll footprint. Correct against
+    // the rendered player tile so the camera stays useful at the map edges.
+    const playerTile = elements.grid.querySelector(`[data-x="${state.player.x}"][data-y="${state.player.y}"]`);
+    if (!playerTile) return;
+    const wrapRect = mapWrap.getBoundingClientRect();
+    const playerRect = playerTile.getBoundingClientRect();
+    mapWrap.scrollLeft += playerRect.left + playerRect.width / 2 - (wrapRect.left + wrapRect.width / 2);
+    mapWrap.scrollTop += playerRect.top + playerRect.height / 2 - (wrapRect.top + wrapRect.height * 0.42);
   });
 }
 

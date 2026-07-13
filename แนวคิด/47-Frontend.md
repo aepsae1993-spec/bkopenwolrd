@@ -566,7 +566,20 @@ Realtime Events:
 - Offline Guard ถูกโจมตีตอนเจ้าของอยู่หน้า logout
 - mobile viewport แคบเกินสำหรับ panel ซ้าย/ขวา
 
-## 25. TODO
+## 25. Prototype Visual Direction: Isometric World Map
+
+The playable map uses an isometric 2.5D renderer instead of a flat square grid. Every game tile remains an addressable grid cell for movement, PvP, gathering, and claim; only its presentation changes.
+
+- Tiles are diamond-shaped, with a low-poly top surface and visible side depth.
+- Forest, grass, mountain, snow, water, and desert render with compact scene props such as tree groves, peaks, waves, and dunes.
+- Spawn cities render as compact settlements, while the center PvP objective renders as a landmark monument.
+- Ownership is communicated through the diamond rim: blue North, green South, teal East, copper West; unowned PvP tiles use a clear red rim.
+- Safe/PvP boundaries, selected tiles, reachable tiles, resources, monsters, and player markers must sit above the terrain and remain readable at mobile scale.
+- The map keeps mouse/touch drag panning and uses DOM buttons for accessible, deterministic tile selection in the prototype.
+- The camera corrects from the final rendered player position, keeping the active character inside the frame even at a world edge.
+- The area beyond an explored world edge renders as open water, so the playable land reads as part of a larger world rather than a clipped rectangle.
+
+## 26. TODO
 
 - ทำ wireframe main game screen
 - กำหนด design tokens สีเมือง 4 ทิศ
