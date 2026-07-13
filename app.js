@@ -80,6 +80,7 @@ const state = {
 
 const elements = {
   grid: document.querySelector("#worldGrid"),
+  mapWrap: document.querySelector(".map-wrap"),
   eventLog: document.querySelector("#eventLog"),
   tileName: document.querySelector("#tileName"),
   tileOwner: document.querySelector("#tileOwner"),
@@ -216,6 +217,16 @@ function territoryBoundary(tile) {
   ].some((neighbor) => !neighbor || neighbor.owner !== tile.owner);
 }
 
+function safetyBoundary(tile) {
+  const tileIsPvp = isPvp(tile);
+  return [
+    getTile(tile.x + 1, tile.y),
+    getTile(tile.x - 1, tile.y),
+    getTile(tile.x, tile.y + 1),
+    getTile(tile.x, tile.y - 1),
+  ].some((neighbor) => neighbor && isPvp(neighbor) !== tileIsPvp);
+}
+
 function zoneClass(zone) {
   return zone.toLowerCase().replace(/\s+/g, "-");
 }
@@ -235,7 +246,7 @@ function renderGrid() {
   const range = moveRange();
   for (const tile of visibleTiles()) {
     const button = document.createElement("button");
-    button.className = `tile ${tile.terrain} ${zoneClass(tile.zone)} ${tile.owner ? `owner-${tile.owner}` : "owner-neutral"}`;
+    button.className = `tile ${tile.terrain} ${zoneClass(tile.zone)} ${isPvp(tile) ? "pvp-zone" : "safe-zone"} ${tile.owner ? `owner-${tile.owner}` : "owner-neutral"}`;
     button.type = "button";
     button.dataset.x = tile.x;
     button.dataset.y = tile.y;
@@ -244,6 +255,7 @@ function renderGrid() {
 
     if (tile.zone === "Center War") button.classList.add("center");
     if (territoryBoundary(tile)) button.classList.add("territory-boundary");
+    if (safetyBoundary(tile)) button.classList.add("safety-boundary", isPvp(tile) ? "pvp-border" : "safe-border");
     if (state.selected && state.selected.x === tile.x && state.selected.y === tile.y) button.classList.add("selected");
     if (distance(state.player, tile) <= range && distance(state.player, tile) > 0) {
       button.classList.add(state.quizReady ? "quiz-reachable" : "reachable");
@@ -286,11 +298,67 @@ function characterModel(kind, name) {
   const model = document.createElement("span");
   const weapon = document.createElement("i");
   const shadow = document.createElement("b");
+  const marker = document.createElement("span");
   model.className = `character-model ${kind}`;
   model.setAttribute("role", "img");
   model.setAttribute("aria-label", name);
-  model.append(weapon, shadow);
+  marker.className = `presence-marker ${kind}`;
+  marker.setAttribute("aria-hidden", "true");
+  if (kind === "player") {
+    const sprite = document.createElement("img");
+    sprite.className = "character-sprite";
+    sprite.src = "assets/mage-arin.png";
+    sprite.alt = "";
+    model.append(sprite);
+  }
+  model.append(weapon, shadow, marker);
   return model;
+}
+
+function setupMapPan() {
+  const mapWrap = elements.mapWrap;
+  const drag = { active: false, moved: false, pointerId: null, startX: 0, startY: 0, scrollLeft: 0, scrollTop: 0 };
+
+  mapWrap.addEventListener("pointerdown", (event) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    drag.active = true;
+    drag.moved = false;
+    drag.pointerId = event.pointerId;
+    drag.startX = event.clientX;
+    drag.startY = event.clientY;
+    drag.scrollLeft = mapWrap.scrollLeft;
+    drag.scrollTop = mapWrap.scrollTop;
+    mapWrap.setPointerCapture(event.pointerId);
+    mapWrap.classList.add("is-dragging");
+  });
+
+  mapWrap.addEventListener("pointermove", (event) => {
+    if (!drag.active || event.pointerId !== drag.pointerId) return;
+    const deltaX = event.clientX - drag.startX;
+    const deltaY = event.clientY - drag.startY;
+    if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) drag.moved = true;
+    if (!drag.moved) return;
+    mapWrap.scrollLeft = drag.scrollLeft - deltaX;
+    mapWrap.scrollTop = drag.scrollTop - deltaY;
+    event.preventDefault();
+  });
+
+  const endDrag = (event) => {
+    if (!drag.active || event.pointerId !== drag.pointerId) return;
+    if (mapWrap.hasPointerCapture(event.pointerId)) mapWrap.releasePointerCapture(event.pointerId);
+    mapWrap.classList.remove("is-dragging");
+    drag.active = false;
+    drag.pointerId = null;
+  };
+
+  mapWrap.addEventListener("pointerup", endDrag);
+  mapWrap.addEventListener("pointercancel", endDrag);
+  mapWrap.addEventListener("click", (event) => {
+    if (!drag.moved) return;
+    drag.moved = false;
+    event.preventDefault();
+    event.stopPropagation();
+  }, true);
 }
 
 function unit(label, className) {
@@ -507,6 +575,7 @@ document.querySelectorAll(".tab-button").forEach((button) => {
   });
 });
 
+setupMapPan();
 buildWorld();
 renderCityDialog();
 state.selected = getTile(state.player.x, state.player.y);

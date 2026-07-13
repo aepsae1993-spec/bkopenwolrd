@@ -13,7 +13,7 @@
   --red: #e45f5f;
   --copper: #d88654;
   --violet: #a58bff;
-  --tile-size: 52px;
+  --tile-size: 64px;
   font-family: "Segoe UI", "Noto Sans Thai", system-ui, sans-serif;
 }
 
@@ -369,11 +369,20 @@ h2 {
   min-height: 0;
   padding: 12px;
   overflow: auto;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  overscroll-behavior: contain;
   background:
     linear-gradient(rgba(246, 237, 216, 0.04) 1px, transparent 1px),
     linear-gradient(90deg, rgba(246, 237, 216, 0.04) 1px, transparent 1px),
     rgba(9, 12, 10, 0.28);
   background-size: 32px 32px;
+}
+
+.map-wrap.is-dragging,
+.map-wrap.is-dragging .tile {
+  cursor: grabbing;
 }
 
 .world-grid {
@@ -492,6 +501,30 @@ h2 {
     inset 0 0 0 1px rgba(255, 255, 255, 0.26),
     0 0 0 1px rgba(0, 0, 0, 0.6),
     0 3px 8px rgba(0, 0, 0, 0.22);
+}
+
+.tile.safety-boundary {
+  z-index: 1;
+  outline: 3px solid var(--safety-line);
+  outline-offset: -3px;
+}
+
+.tile.safety-boundary::after {
+  inset: 3px;
+  border: 2px solid var(--safety-line);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
+    0 0 12px var(--safety-glow);
+}
+
+.tile.safe-border {
+  --safety-line: #70d6ff;
+  --safety-glow: rgba(112, 214, 255, 0.7);
+}
+
+.tile.pvp-border {
+  --safety-line: #ff5964;
+  --safety-glow: rgba(255, 89, 100, 0.72);
 }
 
 .tile.city-territory::after {
@@ -714,6 +747,74 @@ h2 {
   box-shadow: 0 0 0 3px rgba(233, 185, 73, 0.36), 0 0 18px rgba(233, 185, 73, 0.7);
 }
 
+.character-model.player {
+  bottom: -5%;
+  width: 104%;
+  height: 108%;
+}
+
+.character-model.player::before,
+.character-model.player::after,
+.character-model.player i {
+  display: none;
+}
+
+.character-sprite {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+}
+
+.presence-marker {
+  position: absolute;
+  z-index: 6;
+  top: -8%;
+  right: -8%;
+  display: grid;
+  place-items: center;
+  width: 28%;
+  aspect-ratio: 1;
+  border: 2px solid rgba(255, 255, 255, 0.96);
+  border-radius: 50%;
+  color: #171713;
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.38), 0 0 18px currentColor;
+}
+
+.presence-marker::before {
+  content: "✦";
+}
+
+.presence-marker::after {
+  content: "";
+  position: absolute;
+  inset: -38%;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  animation: presencePing 1.6s ease-out infinite;
+}
+
+.presence-marker.player {
+  background: var(--gold);
+  color: var(--gold);
+}
+
+.presence-marker.enemy {
+  background: var(--red);
+  color: var(--red);
+}
+
+.presence-marker.guard {
+  background: var(--violet);
+  color: var(--violet);
+}
+
 .character-model.enemy::after {
   background: linear-gradient(90deg, #7c2929, #e45f5f 54%, #4b1f26);
 }
@@ -738,6 +839,18 @@ h2 {
 
   50% {
     transform: scale(1.12);
+  }
+}
+
+@keyframes presencePing {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.65);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.15);
   }
 }
 
@@ -947,6 +1060,11 @@ dd {
   background: #7b776a;
 }
 
+.legend.safe {
+  background: #70d6ff;
+  box-shadow: 0 0 8px rgba(112, 214, 255, 0.7);
+}
+
 .legend.danger {
   background: var(--red);
 }
@@ -1082,11 +1200,12 @@ dd {
 
   .map-stage {
     order: 1;
-    min-height: 70vh;
+    height: clamp(500px, 72vh, 720px);
+    min-height: 0;
   }
 
   .world-grid {
-    --tile-size: 46px;
+    --tile-size: 60px;
   }
 
   .city-grid {
@@ -1119,9 +1238,13 @@ dd {
   }
 
   .world-grid {
-    --tile-size: 38px;
+    --tile-size: 72px;
     gap: 2px;
     padding: 6px;
+  }
+
+  .map-stage {
+    height: clamp(500px, 72svh, 680px);
   }
 
   .city-grid {
