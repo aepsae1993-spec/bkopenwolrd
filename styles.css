@@ -1400,6 +1400,7 @@ dd {
   height: 56px;
   min-width: 100px;
   min-height: 56px;
+  padding: 0;
   overflow: visible;
   border: 0;
   border-radius: 0;
@@ -1433,15 +1434,15 @@ dd {
 .tile-rim,
 .iso-floor {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  width: 100px;
+  height: 56px;
   clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
 }
 
 .iso-side {
-  z-index: 1;
-  /* Keep the gameplay board geometry inside one diamond tile. */
-  transform: none;
-  background: #416738;
+  display: none;
 }
 
 .tile-rim {
@@ -1452,7 +1453,11 @@ dd {
 
 .iso-floor {
   z-index: 3;
-  transform: scale(0.95);
+  top: 2px;
+  left: 4px;
+  width: 92px;
+  height: 52px;
+  transform: none;
   background: #6daa51;
 }
 
@@ -1514,10 +1519,10 @@ dd {
 .zone-edge {
   position: absolute;
   z-index: 12;
-  width: 58px;
-  height: 5px;
-  border: 1px solid rgba(238, 255, 255, 0.95);
-  border-radius: 3px;
+  width: 54px;
+  height: 3px;
+  border: 0;
+  border-radius: 2px;
   background: #78ddff;
   box-shadow: 0 0 8px rgba(89, 223, 255, 0.94);
   pointer-events: none;
@@ -1527,10 +1532,10 @@ dd {
 .tile.owner-south .zone-edge { background: #67e28d; box-shadow: 0 0 8px rgba(103, 226, 141, 0.9); }
 .tile.owner-east .zone-edge { background: #61e6d6; box-shadow: 0 0 8px rgba(97, 230, 214, 0.9); }
 .tile.owner-west .zone-edge { background: #ffc178; box-shadow: 0 0 8px rgba(255, 193, 120, 0.9); }
-.edge-north { top: 0; left: 50px; transform: rotate(29.25deg); }
-.edge-east { top: 28px; left: 100px; transform: rotate(150.75deg); }
-.edge-south { top: 28px; left: 0; transform: rotate(29.25deg); }
-.edge-west { top: 28px; left: 0; transform: rotate(-29.25deg); }
+.edge-north { top: 2px; left: 49px; transform: rotate(29.25deg); }
+.edge-east { top: 28px; left: 97px; transform: rotate(150.75deg); }
+.edge-south { top: 29px; left: 3px; transform: rotate(29.25deg); }
+.edge-west { top: 28px; left: 3px; transform: rotate(-29.25deg); }
 
 .iso-scene {
   position: absolute;

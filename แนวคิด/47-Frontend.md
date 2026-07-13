@@ -582,6 +582,7 @@ The playable map uses an isometric 2.5D renderer instead of a flat square grid. 
 - The city ground treatment overrides its hidden biome at every visual layer. Four deterministic resource nodes sit at the district corners, and choosing a city resets the character position to that city's own center tile.
 - Resource node icons are anchored at the center of their diamond tile, rather than a rectangular tile corner, so the visual marker always matches the interactable coordinate.
 - Ground layers do not extend beyond their diamond tile. Only intentional world props such as trees, peaks, cities, and characters may rise above the board.
+- Prototype ground tiles use a fixed 100x56 diamond footprint with no extruded side layer; ownership and PvP borders are inset inside that footprint.
 
 ## 26. TODO
 
