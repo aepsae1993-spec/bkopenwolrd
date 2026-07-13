@@ -2,8 +2,9 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize, resolve } from "node:path";
 
-const port = Number(process.env.PORT || 4173);
-const host = process.env.HOST || "127.0.0.1";
+const runtimeProcess = globalThis.process;
+const port = Number(runtimeProcess?.env?.PORT || 4173);
+const host = runtimeProcess?.env?.HOST || "127.0.0.1";
 const root = resolve(".");
 
 const contentTypes = {

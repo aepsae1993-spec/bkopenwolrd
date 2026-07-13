@@ -1,5 +1,6 @@
-const size = 17;
-const center = 8;
+const size = 31;
+const center = Math.floor(size / 2);
+const viewRadius = 10;
 
 const cities = {
   north: {
@@ -9,7 +10,7 @@ const cities = {
     glyph: "N",
     color: "#6da8ff",
     owner: "rgba(109, 168, 255, 0.68)",
-    start: { x: 8, y: 1 },
+    start: { x: center, y: 2 },
     bonus: "เกราะเมือง +3%",
   },
   south: {
@@ -19,7 +20,7 @@ const cities = {
     glyph: "S",
     color: "#5ec77d",
     owner: "rgba(94, 199, 125, 0.68)",
-    start: { x: 8, y: 15 },
+    start: { x: center, y: size - 3 },
     bonus: "เก็บทรัพยากร +3%",
   },
   east: {
@@ -29,7 +30,7 @@ const cities = {
     glyph: "E",
     color: "#54c6b8",
     owner: "rgba(84, 198, 184, 0.68)",
-    start: { x: 15, y: 8 },
+    start: { x: size - 3, y: center },
     bonus: "ฟื้นฟู MP +3%",
   },
   west: {
@@ -39,7 +40,7 @@ const cities = {
     glyph: "W",
     color: "#d88654",
     owner: "rgba(216, 134, 84, 0.68)",
-    start: { x: 1, y: 8 },
+    start: { x: 2, y: center },
     bonus: "โจมตี claim core +3%",
   },
 };
@@ -63,7 +64,7 @@ const terrainGlyphs = {
 const state = {
   homeCity: "north",
   selected: null,
-  player: { x: 8, y: 1 },
+  player: { x: center, y: 2 },
   energy: 12,
   maxEnergy: 12,
   hp: 820,
@@ -101,6 +102,7 @@ const elements = {
   quizButton: document.querySelector("#quizButton"),
   mountButton: document.querySelector("#mountButton"),
   mountText: document.querySelector("#mountText"),
+  mapMeta: document.querySelector("#mapMeta"),
   cityDialog: document.querySelector("#cityDialog"),
   cityGrid: document.querySelector("#cityGrid"),
   logoutDialog: document.querySelector("#logoutDialog"),
@@ -121,6 +123,10 @@ function getTile(x, y) {
   return state.tiles.find((tile) => tile.x === x && tile.y === y);
 }
 
+function worldKey(offsetX, offsetY) {
+  return tileKey(center + offsetX, center + offsetY);
+}
+
 function buildWorld() {
   const terrainCycle = ["grass", "forest", "desert", "grass", "mountain", "water", "snow"];
   const specialResources = new Map([
@@ -130,13 +136,14 @@ function buildWorld() {
     ["12,12", "เหล็กดาว"],
   ]);
   const monsters = new Map([
-    ["7,6", { name: "Rune Beast", hp: 260, anchor: "7,6" }],
-    ["10,7", { name: "Glass Warden", hp: 320, anchor: "10,7" }],
-    ["6,10", { name: "Ash Stalker", hp: 280, anchor: "6,10" }],
+    [worldKey(-3, -4), { name: "Rune Beast", hp: 260, anchor: worldKey(-3, -4) }],
+    [worldKey(4, -3), { name: "Glass Warden", hp: 320, anchor: worldKey(4, -3) }],
+    [worldKey(-5, 4), { name: "Ash Stalker", hp: 280, anchor: worldKey(-5, 4) }],
+    [worldKey(5, 5), { name: "Ember Lynx", hp: 340, anchor: worldKey(5, 5) }],
   ]);
   const enemyPlayers = new Map([
-    ["9,8", { name: "Borin", city: "west", hp: 620 }],
-    ["8,9", { name: "Mira", city: "east", hp: 540, guard: true }],
+    [worldKey(1, 0), { name: "Borin", city: "west", hp: 620 }],
+    [worldKey(0, 1), { name: "Mira", city: "east", hp: 540, guard: true }],
   ]);
 
   state.tiles = [];
@@ -154,19 +161,19 @@ function buildWorld() {
         zone = "Center War";
       } else if (dist <= 4) {
         zone = "Contested";
-      } else if (y <= 3 && Math.abs(x - center) <= 3) {
+      } else if (y <= 7 && Math.abs(x - center) <= 5) {
         owner = "north";
-        zone = "Starter Farm";
-      } else if (y >= 13 && Math.abs(x - center) <= 3) {
+        zone = "City Territory";
+      } else if (y >= size - 8 && Math.abs(x - center) <= 5) {
         owner = "south";
-        zone = "Starter Farm";
-      } else if (x >= 13 && Math.abs(y - center) <= 3) {
+        zone = "City Territory";
+      } else if (x >= size - 8 && Math.abs(y - center) <= 5) {
         owner = "east";
-        zone = "Starter Farm";
-      } else if (x <= 3 && Math.abs(y - center) <= 3) {
+        zone = "City Territory";
+      } else if (x <= 7 && Math.abs(y - center) <= 5) {
         owner = "west";
-        zone = "Starter Farm";
-      } else if (dist <= 6) {
+        zone = "City Territory";
+      } else if (dist <= 9) {
         zone = "Frontier";
       }
 
@@ -185,6 +192,34 @@ function buildWorld() {
   }
 }
 
+function viewportBounds() {
+  const span = viewRadius * 2 + 1;
+  const minX = Math.min(Math.max(state.player.x - viewRadius, 0), size - span);
+  const minY = Math.min(Math.max(state.player.y - viewRadius, 0), size - span);
+  return { minX, minY, maxX: minX + span - 1, maxY: minY + span - 1, span };
+}
+
+function visibleTiles() {
+  const bounds = viewportBounds();
+  return state.tiles
+    .filter((tile) => tile.x >= bounds.minX && tile.x <= bounds.maxX && tile.y >= bounds.minY && tile.y <= bounds.maxY)
+    .sort((a, b) => a.y - b.y || a.x - b.x);
+}
+
+function territoryBoundary(tile) {
+  if (!tile.owner) return false;
+  return [
+    getTile(tile.x + 1, tile.y),
+    getTile(tile.x - 1, tile.y),
+    getTile(tile.x, tile.y + 1),
+    getTile(tile.x, tile.y - 1),
+  ].some((neighbor) => !neighbor || neighbor.owner !== tile.owner);
+}
+
+function zoneClass(zone) {
+  return zone.toLowerCase().replace(/\s+/g, "-");
+}
+
 function moveRange() {
   return mounts[state.mountIndex].range + (state.quizReady ? 1 : 0);
 }
@@ -195,10 +230,12 @@ function isPvp(tile) {
 
 function renderGrid() {
   elements.grid.innerHTML = "";
+  const bounds = viewportBounds();
+  elements.grid.style.setProperty("--grid-columns", bounds.span);
   const range = moveRange();
-  for (const tile of state.tiles) {
+  for (const tile of visibleTiles()) {
     const button = document.createElement("button");
-    button.className = `tile ${tile.terrain}`;
+    button.className = `tile ${tile.terrain} ${zoneClass(tile.zone)} ${tile.owner ? `owner-${tile.owner}` : "owner-neutral"}`;
     button.type = "button";
     button.dataset.x = tile.x;
     button.dataset.y = tile.y;
@@ -206,6 +243,7 @@ function renderGrid() {
     button.setAttribute("aria-label", `ช่อง ${tile.x},${tile.y}`);
 
     if (tile.zone === "Center War") button.classList.add("center");
+    if (territoryBoundary(tile)) button.classList.add("territory-boundary");
     if (state.selected && state.selected.x === tile.x && state.selected.y === tile.y) button.classList.add("selected");
     if (distance(state.player, tile) <= range && distance(state.player, tile) > 0) {
       button.classList.add(state.quizReady ? "quiz-reachable" : "reachable");
@@ -228,12 +266,31 @@ function renderGrid() {
 
     if (tile.resource) button.appendChild(unit("💎", "resource"));
     if (tile.monster) button.appendChild(unit("☠", "monster"));
-    if (tile.enemyPlayer) button.appendChild(unit(tile.enemyPlayer.guard ? "🛡" : "⚔", tile.enemyPlayer.guard ? "guard" : "enemy-player"));
-    if (tile.x === state.player.x && tile.y === state.player.y) button.appendChild(unit("★", "player"));
+    if (tile.enemyPlayer) button.appendChild(characterModel(tile.enemyPlayer.guard ? "guard" : "enemy", tile.enemyPlayer.name));
+    if (tile.x === state.player.x && tile.y === state.player.y) button.appendChild(characterModel("player", "Arin"));
 
     button.addEventListener("click", () => selectTile(tile));
     elements.grid.appendChild(button);
   }
+
+  requestAnimationFrame(() => {
+    const playerTile = elements.grid.querySelector(`[data-x="${state.player.x}"][data-y="${state.player.y}"]`);
+    const mapWrap = elements.grid.parentElement;
+    if (!playerTile || !mapWrap) return;
+    mapWrap.scrollLeft = playerTile.offsetLeft - mapWrap.clientWidth / 2 + playerTile.offsetWidth / 2;
+    mapWrap.scrollTop = playerTile.offsetTop - mapWrap.clientHeight / 2 + playerTile.offsetHeight / 2;
+  });
+}
+
+function characterModel(kind, name) {
+  const model = document.createElement("span");
+  const weapon = document.createElement("i");
+  const shadow = document.createElement("b");
+  model.className = `character-model ${kind}`;
+  model.setAttribute("role", "img");
+  model.setAttribute("aria-label", name);
+  model.append(weapon, shadow);
+  return model;
 }
 
 function unit(label, className) {
@@ -279,6 +336,7 @@ function renderHud() {
   const city = cities[state.homeCity];
   elements.energyText.textContent = `${state.energy}/${state.maxEnergy}`;
   elements.energyFill.style.setProperty("--value", `${(state.energy / state.maxEnergy) * 100}%`);
+  elements.mapMeta.textContent = `World ${size}x${size} | View ${viewRadius * 2 + 1}x${viewRadius * 2 + 1}`;
   elements.positionText.textContent = `ตำแหน่ง ${state.player.x}, ${state.player.y}`;
   elements.homeCityBadge.textContent = city.short;
   elements.homeCityBadge.className = `city-badge ${city.key}`;

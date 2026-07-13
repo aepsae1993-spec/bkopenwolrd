@@ -13,7 +13,7 @@
   --red: #e45f5f;
   --copper: #d88654;
   --violet: #a58bff;
-  --tile: minmax(28px, 1fr);
+  --tile-size: 52px;
   font-family: "Segoe UI", "Noto Sans Thai", system-ui, sans-serif;
 }
 
@@ -364,9 +364,11 @@ h2 {
 
 .map-wrap {
   display: grid;
-  place-items: center;
+  justify-items: center;
+  align-items: start;
   min-height: 0;
   padding: 12px;
+  overflow: auto;
   background:
     linear-gradient(rgba(246, 237, 216, 0.04) 1px, transparent 1px),
     linear-gradient(90deg, rgba(246, 237, 216, 0.04) 1px, transparent 1px),
@@ -376,11 +378,9 @@ h2 {
 
 .world-grid {
   display: grid;
-  grid-template-columns: repeat(17, var(--tile));
-  grid-template-rows: repeat(17, var(--tile));
-  width: min(75vh, 100%);
-  max-width: 790px;
-  aspect-ratio: 1;
+  grid-template-columns: repeat(var(--grid-columns, 21), var(--tile-size));
+  grid-template-rows: repeat(var(--grid-columns, 21), var(--tile-size));
+  width: max-content;
   gap: 4px;
   padding: 10px;
   border: 1px solid rgba(244, 221, 164, 0.28);
@@ -470,6 +470,46 @@ h2 {
   border-color: rgba(233, 185, 73, 0.6);
 }
 
+.tile.owner-north {
+  --territory-line: var(--blue);
+}
+
+.tile.owner-south {
+  --territory-line: var(--green);
+}
+
+.tile.owner-east {
+  --territory-line: var(--teal);
+}
+
+.tile.owner-west {
+  --territory-line: var(--copper);
+}
+
+.tile.territory-boundary {
+  border: 2px solid var(--territory-line);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.26),
+    0 0 0 1px rgba(0, 0, 0, 0.6),
+    0 3px 8px rgba(0, 0, 0, 0.22);
+}
+
+.tile.city-territory::after {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.1);
+}
+
+.tile.frontier::after {
+  border: 1px solid rgba(233, 185, 73, 0.28);
+}
+
+.tile.contested {
+  border-color: rgba(228, 95, 95, 0.48);
+}
+
+.tile.contested::after {
+  border: 1px dashed rgba(228, 95, 95, 0.56);
+}
+
 .tile::before {
   content: "";
   position: absolute;
@@ -491,6 +531,10 @@ h2 {
 .tile .unit {
   position: relative;
   z-index: 1;
+}
+
+.tile .character-model {
+  z-index: 3;
 }
 
 .glyph {
@@ -595,6 +639,95 @@ h2 {
   height: 38%;
   border-radius: 8px;
   background: var(--teal);
+}
+
+.character-model {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  bottom: 4%;
+  width: 68%;
+  height: 82%;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 6px 5px rgba(0, 0, 0, 0.52));
+  pointer-events: none;
+}
+
+.character-model::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  top: 7%;
+  left: 50%;
+  width: 28%;
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  border: 2px solid rgba(255, 247, 219, 0.8);
+  border-radius: 50%;
+  background: #f2be91;
+}
+
+.character-model::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  top: 28%;
+  left: 50%;
+  width: 53%;
+  height: 58%;
+  transform: translateX(-50%);
+  clip-path: polygon(25% 0, 75% 0, 100% 100%, 0 100%);
+  border-radius: 45% 45% 18% 18%;
+}
+
+.character-model i {
+  position: absolute;
+  z-index: 3;
+  top: 32%;
+  right: 8%;
+  width: 8%;
+  height: 52%;
+  transform: rotate(31deg);
+  transform-origin: bottom;
+  border-radius: 4px;
+  background: #f6edd8;
+  box-shadow: 0 0 0 2px rgba(20, 20, 16, 0.38);
+}
+
+.character-model b {
+  position: absolute;
+  z-index: 0;
+  bottom: 1%;
+  left: 50%;
+  width: 76%;
+  height: 12%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.36);
+}
+
+.character-model.player::after {
+  background: linear-gradient(90deg, #2a7773, #e9b949 52%, #1f4f62);
+}
+
+.character-model.player::before {
+  box-shadow: 0 0 0 3px rgba(233, 185, 73, 0.36), 0 0 18px rgba(233, 185, 73, 0.7);
+}
+
+.character-model.enemy::after {
+  background: linear-gradient(90deg, #7c2929, #e45f5f 54%, #4b1f26);
+}
+
+.character-model.enemy i {
+  background: #f0b39a;
+}
+
+.character-model.guard::after {
+  background: linear-gradient(90deg, #41346e, #a58bff 52%, #304b75);
+}
+
+.character-model.guard::before {
+  box-shadow: 0 0 0 3px rgba(165, 139, 255, 0.35), 0 0 16px rgba(165, 139, 255, 0.68);
 }
 
 @keyframes pulseStar {
@@ -953,7 +1086,7 @@ dd {
   }
 
   .world-grid {
-    width: min(92vw, 76vh);
+    --tile-size: 46px;
   }
 
   .city-grid {
@@ -986,6 +1119,7 @@ dd {
   }
 
   .world-grid {
+    --tile-size: 38px;
     gap: 2px;
     padding: 6px;
   }
