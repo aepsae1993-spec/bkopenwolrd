@@ -518,7 +518,38 @@ Realtime Events:
 - bot เดินวนเก็บ node เดิม
 - resource respawn บน tile ที่กลายเป็น blocked
 
-## 20. TODO
+## 20. Prototype Rules: Depletion, Yield, and Respawn
+
+The browser prototype uses the following authoritative rule set. The production server must calculate and persist every quantity, gather result, depletion time, and respawn result.
+
+### Node lifecycle
+
+1. Each resource node has `resource_type`, `tier`, `quantity`, `max_quantity`, and optional `respawn_at`.
+2. A gathering action represents one minute of active gathering in the prototype.
+3. Every completed action reduces `quantity`; the collected amount is added to the player's inventory.
+4. At `quantity = 0`, the node disappears and the tile is empty. The tile can be claimed while waiting.
+5. Exactly 30 minutes after depletion, the server randomly chooses a valid resource type and tier for that tile's biome, then creates a new node. Claim ownership does not prevent the respawn.
+
+### Wood gathering yield
+
+| Gathering Level | Wood / minute | Wood / 30 minutes |
+| --- | ---: | ---: |
+| Lv.1 | 10 | 300 |
+| Lv.2 | 12 | 360 |
+| Lv.3 | 15 | 450 |
+| Lv.4 | 18 | 540 |
+| Lv.5 | 21 | 630 |
+
+Other resource types apply a lower multiplier because they are more valuable: herb 0.90, stone 0.85, hardwood 0.70, iron 0.65, crystal 0.50. Tools, city bonuses, quiz bonuses, and PvP risk modifiers are applied after this base yield.
+
+### Spawn selection
+
+- Forest and grass: wood, herb, or hardwood.
+- Mountain and desert: stone or iron.
+- Snow, mountain, and water: crystal may spawn.
+- The prototype displays T1-T3 nodes. Tier is rolled with the resource type; T2 adds 25% node quantity and T3 adds 50%. A production table should weight low tiers most heavily and reserve high tiers for dangerous biomes and events.
+
+## 21. TODO
 
 - กำหนด resource type จริงสำหรับ MVP
 - กำหนด node spawn ต่อ biome

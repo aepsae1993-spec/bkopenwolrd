@@ -360,7 +360,13 @@ Realtime Events:
 - ผู้เล่นปิดเว็บตอน Combat Lock เหลือไม่กี่วินาที
 - ผู้เล่น reconnect แล้วตำแหน่ง/HP เปลี่ยนไปจากตอนปิดเว็บ
 
-## 17. TODO
+## 17. Prototype Rules: 5x5 Safe City and PvP World
+
+Each of the four spawn cities owns exactly a 5x5 tile square, centered on its spawn tile. This whole square is a Safe City zone: PvP and claim are disabled. The city color fills these 25 tiles, and the outside edge is rendered as a clear safe/PvP boundary.
+
+Every tile outside those four 5x5 city squares is PvP-enabled. Empty, unowned PvP tiles remain visually white with a red PvP frame; claimed tiles retain the owner's city color while also remaining PvP-enabled. The central world objective is still a PvP area, not an additional safe zone.
+
+## 18. TODO
 
 - กำหนดขนาด map และ chunk จริงสำหรับ MVP
 - ตั้งชื่อเมืองเกิด 4 ทิศ

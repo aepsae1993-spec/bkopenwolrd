@@ -61,6 +61,17 @@ const terrainGlyphs = {
   snow: "❄️",
 };
 
+const gatherYieldByLevel = [10, 12, 15, 18, 21];
+const resourceRespawnMs = 30 * 60 * 1000;
+const resourceProfiles = [
+  { id: "wood", name: "ไม้", icon: "🪵", tier: 1, maxQuantity: 120, yieldMultiplier: 1, terrains: ["forest", "grass"] },
+  { id: "herb", name: "สมุนไพร", icon: "🌿", tier: 1, maxQuantity: 100, yieldMultiplier: 0.9, terrains: ["forest", "grass", "snow"] },
+  { id: "stone", name: "หิน", icon: "🪨", tier: 1, maxQuantity: 110, yieldMultiplier: 0.85, terrains: ["mountain", "desert"] },
+  { id: "hardwood", name: "ไม้แก่น", icon: "🌳", tier: 2, maxQuantity: 90, yieldMultiplier: 0.7, terrains: ["forest"] },
+  { id: "iron", name: "แร่เหล็ก", icon: "⛏️", tier: 2, maxQuantity: 80, yieldMultiplier: 0.65, terrains: ["mountain", "desert"] },
+  { id: "crystal", name: "คริสตัล", icon: "💠", tier: 3, maxQuantity: 60, yieldMultiplier: 0.5, terrains: ["snow", "mountain", "water"] },
+];
+
 const state = {
   homeCity: "north",
   selected: null,
@@ -75,6 +86,8 @@ const state = {
   mountIndex: 1,
   combatLock: 0,
   offlineGuard: true,
+  gatherLevel: 1,
+  inventory: { wood: 0, herb: 0, stone: 0, hardwood: 0, iron: 0, crystal: 0 },
   tiles: [],
 };
 
@@ -104,6 +117,7 @@ const elements = {
   mountButton: document.querySelector("#mountButton"),
   mountText: document.querySelector("#mountText"),
   mapMeta: document.querySelector("#mapMeta"),
+  gatherInfo: document.querySelector("#gatherInfo"),
   cityDialog: document.querySelector("#cityDialog"),
   cityGrid: document.querySelector("#cityGrid"),
   logoutDialog: document.querySelector("#logoutDialog"),
@@ -128,14 +142,36 @@ function worldKey(offsetX, offsetY) {
   return tileKey(center + offsetX, center + offsetY);
 }
 
+function safeCityAt(x, y) {
+  return Object.values(cities).find((city) => Math.abs(city.start.x - x) <= 2 && Math.abs(city.start.y - y) <= 2);
+}
+
+function createResourceForTerrain(terrain, seed = Math.random()) {
+  const candidates = resourceProfiles.filter((profile) => profile.terrains.includes(terrain));
+  const profile = candidates[Math.floor(seed * candidates.length)] || resourceProfiles[0];
+  const tierBonus = seed > 0.93 ? 2 : seed > 0.72 ? 1 : 0;
+  const tier = Math.min(3, profile.tier + tierBonus);
+  const maxQuantity = Math.round(profile.maxQuantity * (1 + (tier - profile.tier) * 0.25));
+  return { ...profile, tier, maxQuantity, quantity: maxQuantity };
+}
+
+function resourceYield(node) {
+  const levelIndex = Math.min(Math.max(state.gatherLevel, 1), gatherYieldByLevel.length) - 1;
+  return Math.max(1, Math.round(gatherYieldByLevel[levelIndex] * node.yieldMultiplier));
+}
+
+function resourceLabel(node) {
+  return `${node.name} T${node.tier} ${node.quantity}/${node.maxQuantity}`;
+}
+
+function formatRespawn(availableAt) {
+  const seconds = Math.max(0, Math.ceil((availableAt - Date.now()) / 1000));
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
 function buildWorld() {
   const terrainCycle = ["grass", "forest", "desert", "grass", "mountain", "water", "snow"];
-  const specialResources = new Map([
-    ["6,5", "แร่อักษร"],
-    ["11,5", "คริสตัลความรู้"],
-    ["5,11", "ไม้เวท"],
-    ["12,12", "เหล็กดาว"],
-  ]);
   const monsters = new Map([
     [worldKey(-3, -4), { name: "Rune Beast", hp: 260, anchor: worldKey(-3, -4) }],
     [worldKey(4, -3), { name: "Glass Warden", hp: 320, anchor: worldKey(4, -3) }],
@@ -152,31 +188,19 @@ function buildWorld() {
     for (let x = 0; x < size; x += 1) {
       const dist = distance({ x, y }, { x: center, y: center });
       const city = Object.values(cities).find((entry) => entry.start.x === x && entry.start.y === y);
+      const safeCity = safeCityAt(x, y);
       const terrain = terrainCycle[(x * 3 + y * 5) % terrainCycle.length];
       let owner = null;
-      let zone = "Neutral";
-      if (city) {
-        owner = city.key;
+      let zone = "PvP";
+      if (safeCity) {
+        owner = safeCity.key;
         zone = "Safe City";
       } else if (dist <= 2) {
         zone = "Center War";
-      } else if (dist <= 4) {
-        zone = "Contested";
-      } else if (y <= 7 && Math.abs(x - center) <= 5) {
-        owner = "north";
-        zone = "City Territory";
-      } else if (y >= size - 8 && Math.abs(x - center) <= 5) {
-        owner = "south";
-        zone = "City Territory";
-      } else if (x >= size - 8 && Math.abs(y - center) <= 5) {
-        owner = "east";
-        zone = "City Territory";
-      } else if (x <= 7 && Math.abs(y - center) <= 5) {
-        owner = "west";
-        zone = "City Territory";
-      } else if (dist <= 9) {
-        zone = "Frontier";
       }
+
+      const resourceSeed = ((x * 17 + y * 31) % 29) / 29;
+      const hasResource = !safeCity && (x * 17 + y * 31) % 23 === 0;
 
       state.tiles.push({
         x,
@@ -185,7 +209,8 @@ function buildWorld() {
         owner,
         zone,
         city: city?.key || null,
-        resource: specialResources.get(tileKey(x, y)) || null,
+        resource: hasResource ? createResourceForTerrain(terrain, resourceSeed) : null,
+        respawnAt: null,
         monster: monsters.get(tileKey(x, y)) || null,
         enemyPlayer: enemyPlayers.get(tileKey(x, y)) || null,
       });
@@ -236,7 +261,7 @@ function moveRange() {
 }
 
 function isPvp(tile) {
-  return ["Contested", "Center War", "Frontier"].includes(tile.zone);
+  return tile.zone !== "Safe City";
 }
 
 function renderGrid() {
@@ -276,7 +301,7 @@ function renderGrid() {
     }
     button.appendChild(glyph);
 
-    if (tile.resource) button.appendChild(unit("💎", "resource"));
+    if (tile.resource) button.appendChild(unit(tile.resource.icon, `resource tier-${tile.resource.tier}`));
     if (tile.monster) button.appendChild(unit("☠", "monster"));
     if (tile.enemyPlayer) button.appendChild(characterModel(tile.enemyPlayer.guard ? "guard" : "enemy", tile.enemyPlayer.name));
     if (tile.x === state.player.x && tile.y === state.player.y) button.appendChild(characterModel("player", "Arin"));
@@ -377,7 +402,7 @@ function renderTilePanel() {
   const owner = tile.owner ? cities[tile.owner].name : "ไม่มีเจ้าของ";
   const content = [
     tile.city ? "เมืองเกิด" : null,
-    tile.resource,
+    tile.resource ? resourceLabel(tile.resource) : tile.respawnAt ? `กำลังฟื้นตัว ${formatRespawn(tile.respawnAt)}` : null,
     tile.monster?.name,
     tile.enemyPlayer ? `${tile.enemyPlayer.name}${tile.enemyPlayer.guard ? " (Offline Guard)" : ""}` : null,
   ].filter(Boolean);
@@ -386,7 +411,7 @@ function renderTilePanel() {
   const canMove = dist > 0 && dist <= range && state.energy >= 1 && tile.terrain !== "water";
   const canGather = Boolean(tile.resource) && dist === 0;
   const canAttack = Boolean(tile.monster || tile.enemyPlayer) && dist <= 1;
-  const canClaim = dist === 0 && !tile.city && tile.owner !== state.homeCity && !tile.enemyPlayer && isPvp(tile);
+  const canClaim = dist === 0 && !tile.city && !tile.owner && !tile.enemyPlayer && !tile.resource && isPvp(tile);
 
   elements.tileName.textContent = `${tile.x}, ${tile.y} - ${tile.terrain}`;
   elements.tileOwner.textContent = owner;
@@ -404,6 +429,7 @@ function renderHud() {
   elements.energyText.textContent = `${state.energy}/${state.maxEnergy}`;
   elements.energyFill.style.setProperty("--value", `${(state.energy / state.maxEnergy) * 100}%`);
   elements.mapMeta.textContent = `World ${size}x${size} | View ${viewRadius * 2 + 1}x${viewRadius * 2 + 1}`;
+  elements.gatherInfo.textContent = `เก็บเกี่ยว Lv.${state.gatherLevel} | ไม้ ${gatherYieldByLevel[state.gatherLevel - 1]}/นาที`;
   elements.positionText.textContent = `ตำแหน่ง ${state.player.x}, ${state.player.y}`;
   elements.homeCityBadge.textContent = city.short;
   elements.homeCityBadge.className = `city-badge ${city.key}`;
@@ -426,7 +452,14 @@ function renderHud() {
 
 function renderQuickPanel(mode = "inventory") {
   const data = {
-    inventory: ["◆ แร่อักษร x4", "◇ ไม้เวท x2", "◌ ยาฟื้น HP x3", "▣ Claim Core x1"],
+    inventory: [
+      `🪵 ไม้ x${state.inventory.wood}`,
+      `🌿 สมุนไพร x${state.inventory.herb}`,
+      `🪨 หิน x${state.inventory.stone}`,
+      `⛏️ แร่เหล็ก x${state.inventory.iron}`,
+      `💠 คริสตัล x${state.inventory.crystal}`,
+      "▣ Claim Core x1",
+    ],
     mount: mounts.map((mount, index) => `${index === state.mountIndex ? "✓" : "○"} ${mount.name} เดิน ${mount.range}`),
     pet: ["Chrono Seraph", "Crystal Fox", "Rune Sprite"],
     craft: ["ดาบฝึกหัด", "เกราะหนัง", "เครื่องมือขุด", "ธงยึดพื้นที่"],
@@ -495,10 +528,18 @@ function doMove() {
 function doGather() {
   const tile = getTile(state.player.x, state.player.y);
   if (!tile.resource) return;
-  state.gold += 35;
-  logEvent(`เก็บ ${tile.resource} ได้ทอง +35`);
-  tile.resource = null;
+  const node = tile.resource;
+  const amount = Math.min(resourceYield(node), node.quantity);
+  state.inventory[node.id] += amount;
+  node.quantity -= amount;
+  logEvent(`เก็บ ${node.name} +${amount} (รอบเก็บ 1 นาที)`);
+  if (node.quantity <= 0) {
+    tile.resource = null;
+    tile.respawnAt = Date.now() + resourceRespawnMs;
+    logEvent(`${node.name} หมดแล้ว: ช่องนี้ว่างและยึดได้, สุ่มเกิดใหม่ใน 30 นาที`);
+  }
   renderAll();
+  renderQuickPanel("inventory");
 }
 
 function doAttack() {
@@ -535,9 +576,25 @@ function doClaim() {
 }
 
 function tick() {
+  const now = Date.now();
+  let respawned = false;
+  for (const tile of state.tiles) {
+    if (tile.respawnAt && now >= tile.respawnAt) {
+      tile.resource = createResourceForTerrain(tile.terrain);
+      tile.respawnAt = null;
+      logEvent(`${tile.resource.name} T${tile.resource.tier} เกิดใหม่ที่ ${tile.x}, ${tile.y}`);
+      respawned = true;
+    }
+  }
   if (state.combatLock > 0) {
     state.combatLock -= 1;
     renderHud();
+  }
+  if (respawned) {
+    renderAll();
+    renderQuickPanel("inventory");
+  } else if (state.selected?.respawnAt) {
+    renderTilePanel();
   }
 }
 

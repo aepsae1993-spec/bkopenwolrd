@@ -346,6 +346,13 @@ h2 {
   font-size: 1rem;
 }
 
+.gather-info {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
 .toolbar-actions,
 .map-legend {
   display: flex;
@@ -502,12 +509,12 @@ h2 {
   --owner-tint: rgba(193, 105, 50, 0.74);
 }
 
-.tile.owner-neutral.safe-zone {
+.tile.owner-neutral {
   background: #e8ebe8;
   color: #1d2b28;
 }
 
-.tile.owner-neutral.safe-zone::before {
+.tile.owner-neutral::before {
   opacity: 0;
 }
 
@@ -706,6 +713,15 @@ h2 {
   background: var(--teal);
 }
 
+.unit.resource.tier-2 {
+  background: #8ac8ff;
+}
+
+.unit.resource.tier-3 {
+  background: #c79dff;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.78), 0 0 16px rgba(199, 157, 255, 0.92);
+}
+
 .character-model {
   position: absolute;
   z-index: 3;
@@ -783,6 +799,8 @@ h2 {
   bottom: -5%;
   width: 104%;
   height: 108%;
+  transform-origin: center bottom;
+  animation: playerIdle 2.35s ease-in-out infinite;
 }
 
 .character-model.player::before,
@@ -799,6 +817,7 @@ h2 {
   height: 100%;
   object-fit: contain;
   object-position: center bottom;
+  animation: spriteBreath 2.35s ease-in-out infinite;
 }
 
 .presence-marker {
@@ -851,6 +870,12 @@ h2 {
   background: linear-gradient(90deg, #7c2929, #e45f5f 54%, #4b1f26);
 }
 
+.character-model.enemy,
+.character-model.guard {
+  transform-origin: center bottom;
+  animation: npcIdle 2.7s ease-in-out infinite;
+}
+
 .character-model.enemy i {
   background: #f0b39a;
 }
@@ -883,6 +908,54 @@ h2 {
   100% {
     opacity: 0;
     transform: scale(1.15);
+  }
+}
+
+@keyframes playerIdle {
+  0%,
+  100% {
+    transform: translateX(-50%) translateY(0) rotate(-1deg);
+  }
+
+  48% {
+    transform: translateX(-50%) translateY(-5%) rotate(1deg);
+  }
+
+  62% {
+    transform: translateX(-50%) translateY(-2%) rotate(0deg);
+  }
+}
+
+@keyframes spriteBreath {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+
+  50% {
+    filter: brightness(1.09) saturate(1.08);
+  }
+}
+
+@keyframes npcIdle {
+  0%,
+  100% {
+    transform: translateX(-50%) translateY(0);
+  }
+
+  50% {
+    transform: translateX(-50%) translateY(-4%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .character-model.player,
+  .character-model.enemy,
+  .character-model.guard,
+  .character-sprite,
+  .presence-marker::after,
+  .center-glyph {
+    animation: none;
   }
 }
 
