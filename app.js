@@ -336,11 +336,10 @@ function setupMapPan() {
     if (!drag.active || event.pointerId !== drag.pointerId) return;
     const deltaX = event.clientX - drag.startX;
     const deltaY = event.clientY - drag.startY;
-    if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) drag.moved = true;
-    if (!drag.moved) return;
+    if (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1) drag.moved = true;
     mapWrap.scrollLeft = drag.scrollLeft - deltaX;
     mapWrap.scrollTop = drag.scrollTop - deltaY;
-    event.preventDefault();
+    if (drag.moved) event.preventDefault();
   });
 
   const endDrag = (event) => {
