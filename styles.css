@@ -1416,6 +1416,11 @@ dd {
   background: transparent !important;
 }
 
+.world-grid .tile.reachable,
+.world-grid .tile.quiz-reachable {
+  box-shadow: none;
+}
+
 .tile:hover,
 .tile.selected {
   outline: 0;
@@ -1424,7 +1429,9 @@ dd {
 .tile:hover .tile-rim,
 .tile.selected .tile-rim {
   background: #ffe477;
-  filter: drop-shadow(0 0 7px rgba(255, 228, 119, 0.9));
+  filter:
+    drop-shadow(0 5px 3px rgba(3, 18, 24, 0.42))
+    drop-shadow(0 0 7px rgba(255, 228, 119, 0.9));
 }
 
 .tile.reachable .tile-rim {
@@ -1453,7 +1460,9 @@ dd {
 .tile-rim {
   z-index: 2;
   background: var(--rim-color);
-  filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.32));
+  filter:
+    drop-shadow(0 5px 3px rgba(3, 18, 24, 0.42))
+    drop-shadow(0 1px 0 rgba(255, 255, 255, 0.2));
 }
 
 .iso-floor {
