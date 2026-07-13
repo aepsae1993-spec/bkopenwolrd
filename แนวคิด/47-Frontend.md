@@ -580,6 +580,7 @@ The playable map uses an isometric 2.5D renderer instead of a flat square grid. 
 - The area beyond an explored world edge renders as open water, so the playable land reads as part of a larger world rather than a clipped rectangle.
 - Each 5x5 spawn city uses one city-color ground treatment. A luminous perimeter is drawn only around the district's outer diamond, while the surrounding unowned PvP tiles retain their red rim.
 - The city ground treatment overrides its hidden biome at every visual layer. Four deterministic resource nodes sit at the district corners, and choosing a city resets the character position to that city's own center tile.
+- Resource node icons are anchored at the center of their diamond tile, rather than a rectangular tile corner, so the visual marker always matches the interactable coordinate.
 
 ## 26. TODO
 

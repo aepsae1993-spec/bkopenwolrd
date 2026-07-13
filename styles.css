@@ -1716,7 +1716,12 @@ dd {
   box-shadow: 0 4px 0 rgba(0, 0, 0, 0.24);
 }
 
-.tile .unit.resource { right: 4px; bottom: 20px; }
+.tile .unit.resource {
+  right: auto;
+  bottom: 13px;
+  left: 50%;
+  transform: translateX(-50%);
+}
 .tile .unit.monster { top: -6px; right: 9px; }
 
 .tile .character-model {
