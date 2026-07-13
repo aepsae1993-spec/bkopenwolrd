@@ -204,7 +204,13 @@ function buildWorld() {
       }
 
       const resourceSeed = ((x * 17 + y * 31) % 29) / 29;
-      const hasResource = !safeCity && (x * 17 + y * 31) % 23 === 0;
+      const safeDistrictResource = Boolean(
+        safeCity
+        && !city
+        && Math.abs(x - safeCity.start.x) === 2
+        && Math.abs(y - safeCity.start.y) === 2,
+      );
+      const hasResource = safeDistrictResource || (!safeCity && (x * 17 + y * 31) % 23 === 0);
 
       state.tiles.push({
         x,
@@ -213,7 +219,7 @@ function buildWorld() {
         owner,
         zone,
         city: city?.key || null,
-        resource: hasResource ? createResourceForTerrain(terrain, resourceSeed) : null,
+        resource: hasResource ? createResourceForTerrain(safeDistrictResource ? "grass" : terrain, resourceSeed) : null,
         respawnAt: null,
         monster: monsters.get(tileKey(x, y)) || null,
         enemyPlayer: enemyPlayers.get(tileKey(x, y)) || null,
@@ -546,7 +552,13 @@ function renderCityDialog() {
       <span>${city.bonus}</span>
       <button type="button">เลือกเมืองนี้</button>
     `;
-    card.querySelector("button").addEventListener("click", () => chooseCity(city.key));
+    const chooseButton = card.querySelector("button");
+    chooseButton.dataset.city = city.key;
+    chooseButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      chooseCity(event.currentTarget.dataset.city);
+    });
     elements.cityGrid.appendChild(card);
   });
 }

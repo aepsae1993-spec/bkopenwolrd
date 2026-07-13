@@ -1491,20 +1491,24 @@ dd {
 .tile::before,
 .tile::after { content: none; }
 
-/* Spawn cities are continuous districts; only their outer perimeter receives a bright border. */
-.tile.safe-zone .tile-rim,
-.tile.safe-zone.territory-boundary .tile-rim {
-  background: #183c54;
+/* Spawn cities use a flat city-color board, independent from the biome beneath it. */
+.tile.safe-zone.owner-north { --city-floor: #79adff; --city-side: #4d7ed8; --city-rim: #d9eaff; }
+.tile.safe-zone.owner-south { --city-floor: #69cb87; --city-side: #348654; --city-rim: #d8ffe1; }
+.tile.safe-zone.owner-east { --city-floor: #5ecfc0; --city-side: #2d8a82; --city-rim: #d4fffa; }
+.tile.safe-zone.owner-west { --city-floor: #de9365; --city-side: #a45634; --city-rim: #fff0dd; }
+
+.tile.safe-zone .iso-floor {
+  background: var(--city-floor) !important;
 }
 
-.tile.safe-zone.owner-north .iso-floor { background: #6da8ff; }
-.tile.safe-zone.owner-north .iso-side { background: #3f70b9; }
-.tile.safe-zone.owner-south .iso-floor { background: #5ec77d; }
-.tile.safe-zone.owner-south .iso-side { background: #2e8050; }
-.tile.safe-zone.owner-east .iso-floor { background: #54c6b8; }
-.tile.safe-zone.owner-east .iso-side { background: #287c78; }
-.tile.safe-zone.owner-west .iso-floor { background: #d88654; }
-.tile.safe-zone.owner-west .iso-side { background: #9a4e2e; }
+.tile.safe-zone .iso-side {
+  background: var(--city-side) !important;
+}
+
+.tile.safe-zone .tile-rim,
+.tile.safe-zone.territory-boundary .tile-rim {
+  background: var(--city-rim) !important;
+}
 
 .zone-edge {
   position: absolute;
