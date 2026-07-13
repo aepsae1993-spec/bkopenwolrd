@@ -549,6 +549,13 @@ Other resource types apply a lower multiplier because they are more valuable: he
 - Snow, mountain, and water: crystal may spawn.
 - The prototype displays T1-T3 nodes. Tier is rolled with the resource type; T2 adds 25% node quantity and T3 adds 50%. A production table should weight low tiers most heavily and reserve high tiers for dangerous biomes and events.
 
+### Visual exclusivity
+
+- A tile can render only one gatherable resource model at a time.
+- While a resource node exists, the tile's decorative biome prop is suppressed; the biome floor remains visible.
+- At depletion, both the node and biome prop remain hidden during the 30-minute respawn timer, making the tile visibly empty and claimable.
+- Spawn-city structures and the Center War monument never receive random resource nodes.
+
 ## 21. TODO
 
 - กำหนด resource type จริงสำหรับ MVP

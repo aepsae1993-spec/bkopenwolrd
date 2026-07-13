@@ -210,7 +210,7 @@ function buildWorld() {
         && Math.abs(x - safeCity.start.x) === 2
         && Math.abs(y - safeCity.start.y) === 2,
       );
-      const hasResource = safeDistrictResource || (!safeCity && (x * 17 + y * 31) % 23 === 0);
+      const hasResource = safeDistrictResource || (!safeCity && zone !== "Center War" && (x * 17 + y * 31) % 23 === 0);
 
       state.tiles.push({
         x,
@@ -313,6 +313,10 @@ function createIsoScene(tile) {
     scene.append(isoElement("monument-spire"), isoElement("monument-ring"));
     return scene;
   }
+
+  // Resource nodes own the vertical prop layer. Depleted nodes stay visually empty
+  // until respawn, so biome decoration cannot be mistaken for a gatherable node.
+  if (tile.resource || tile.respawnAt) return scene;
 
   if (tile.terrain === "forest" || (tile.terrain === "grass" && (tile.x * 7 + tile.y) % 4 === 0)) {
     scene.classList.add("tree-grove");
