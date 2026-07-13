@@ -1,3 +1,9 @@
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseUrl = __SUPABASE_URL__;
+const supabaseAnonKey = __SUPABASE_ANON_KEY__;
+const hasOnlineConfig = Boolean(supabaseUrl && supabaseAnonKey);
+
 const size = 31;
 const center = Math.floor(size / 2);
 const viewRadius = 10;
@@ -93,6 +99,17 @@ const state = {
   gatherLevel: 1,
   inventory: { wood: 0, herb: 0, stone: 0, hardwood: 0, iron: 0, crystal: 0 },
   tiles: [],
+  onlinePlayers: new Map(),
+};
+
+const online = {
+  client: null,
+  user: null,
+  ready: false,
+  profileHasCity: false,
+  presenceChannel: null,
+  worldChannel: null,
+  lastResourceRefresh: 0,
 };
 
 const elements = {
@@ -111,6 +128,7 @@ const elements = {
   energyText: document.querySelector("#energyText"),
   energyFill: document.querySelector("#energyFill"),
   positionText: document.querySelector("#positionText"),
+  networkStatus: document.querySelector("#networkStatus"),
   homeCityBadge: document.querySelector("#homeCityBadge"),
   combatLockRing: document.querySelector("#combatLockRing"),
   combatState: document.querySelector("#combatState"),
@@ -172,6 +190,166 @@ function formatRespawn(availableAt) {
   const seconds = Math.max(0, Math.ceil((availableAt - Date.now()) / 1000));
   const minutes = Math.floor(seconds / 60);
   return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+function setNetworkStatus(mode, text) {
+  elements.networkStatus.className = `network-status ${mode}`;
+  elements.networkStatus.textContent = text;
+}
+
+function applyProfile(profile) {
+  if (!profile) return;
+  online.profileHasCity = Boolean(profile.home_city);
+  if (profile.home_city && cities[profile.home_city]) state.homeCity = profile.home_city;
+  state.player = { x: profile.x, y: profile.y };
+  state.hp = profile.hp;
+  state.mp = profile.mp;
+  state.energy = profile.energy;
+  state.maxEnergy = profile.max_energy;
+  state.gold = profile.gold;
+  state.blood = profile.blood;
+  state.mountIndex = profile.mount_index;
+  state.gatherLevel = profile.gather_level;
+  state.offlineGuard = profile.offline_guard;
+  state.inventory = { ...state.inventory, ...(profile.inventory || {}) };
+  if (profile.combat_lock_until) {
+    state.combatLock = Math.max(0, Math.ceil((new Date(profile.combat_lock_until).getTime() - Date.now()) / 1000));
+  }
+}
+
+function resourceFromRow(row) {
+  if (!row.resource_id) return null;
+  const profile = resourceProfiles.find((entry) => entry.id === row.resource_id);
+  if (!profile) return null;
+  return {
+    ...profile,
+    tier: row.resource_tier,
+    quantity: row.resource_quantity,
+    maxQuantity: row.resource_max_quantity,
+  };
+}
+
+function applyWorldTile(row) {
+  const tile = getTile(row.x, row.y);
+  if (!tile) return;
+  tile.terrain = row.terrain;
+  tile.zone = row.zone;
+  tile.owner = row.owner;
+  tile.city = row.city;
+  tile.resource = resourceFromRow(row);
+  tile.respawnAt = row.respawn_at ? new Date(row.respawn_at).getTime() : null;
+}
+
+function applyWorldRows(rows = []) {
+  for (const row of rows) applyWorldTile(row);
+}
+
+async function gameRpc(name, params = {}) {
+  const { data, error } = await online.client.rpc(name, params);
+  if (error) throw error;
+  return data;
+}
+
+function onlineError(action, error) {
+  const message = error?.message || "ไม่สามารถติดต่อเซิร์ฟเวอร์ได้";
+  logEvent(`${action}: ${message}`);
+  setNetworkStatus("warning", "เชื่อมต่อมีปัญหา");
+}
+
+function presencePayload() {
+  return {
+    user_id: online.user?.id,
+    name: "Arin",
+    city: state.homeCity,
+    x: state.player.x,
+    y: state.player.y,
+    hp: state.hp,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+async function updatePresence() {
+  if (!online.ready || !online.presenceChannel) return;
+  await online.presenceChannel.track(presencePayload());
+}
+
+function syncPresence() {
+  if (!online.presenceChannel) return;
+  const presenceState = online.presenceChannel.presenceState();
+  const players = new Map();
+  for (const entries of Object.values(presenceState)) {
+    for (const entry of entries) {
+      if (!entry.user_id || entry.user_id === online.user?.id) continue;
+      players.set(entry.user_id, entry);
+    }
+  }
+  state.onlinePlayers = players;
+  setNetworkStatus("online", `ออนไลน์ ${players.size + 1}`);
+  renderGrid();
+}
+
+async function setupRealtime() {
+  online.presenceChannel = online.client.channel("eduquest-world", {
+    config: { presence: { key: online.user.id } },
+  });
+  online.presenceChannel
+    .on("presence", { event: "sync" }, syncPresence)
+    .on("presence", { event: "join" }, syncPresence)
+    .on("presence", { event: "leave" }, syncPresence)
+    .subscribe(async (status) => {
+      if (status === "SUBSCRIBED") await updatePresence();
+    });
+
+  online.worldChannel = online.client
+    .channel("eduquest-world-tiles")
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "game_world_tiles" },
+      (payload) => {
+        applyWorldTile(payload.new);
+        renderAll();
+      },
+    )
+    .subscribe();
+}
+
+async function initializeOnline() {
+  if (!hasOnlineConfig) {
+    setNetworkStatus("offline", "Local Mode");
+    return false;
+  }
+
+  setNetworkStatus("connecting", "กำลังเชื่อมต่อ");
+  try {
+    online.client = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+    });
+    const { data: sessionData } = await online.client.auth.getSession();
+    let session = sessionData.session;
+    if (!session) {
+      const { data, error } = await online.client.auth.signInAnonymously({
+        options: { data: { game: "eduquest-online" } },
+      });
+      if (error) throw error;
+      session = data.session;
+    }
+    online.user = session.user;
+
+    const bootstrap = await gameRpc("game_bootstrap", { p_name: "Arin" });
+    applyWorldRows(bootstrap.tiles);
+    applyProfile(bootstrap.profile);
+    state.selected = getTile(state.player.x, state.player.y);
+    online.ready = true;
+    await setupRealtime();
+    setNetworkStatus("online", "ออนไลน์ 1");
+    logEvent("เชื่อมต่อ Supabase สำเร็จ: โหลดตัวละครและโลกออนไลน์แล้ว");
+    return true;
+  } catch (error) {
+    online.ready = false;
+    onlineError("เริ่มระบบออนไลน์ไม่สำเร็จ", error);
+    setNetworkStatus("offline", "Local Mode");
+    return false;
+  }
 }
 
 function buildWorld() {
@@ -367,6 +545,9 @@ function renderGrid() {
     if (tile.resource) button.appendChild(resourceModel(tile.resource));
     if (tile.monster) button.appendChild(unit("☠", "monster"));
     if (tile.enemyPlayer) button.appendChild(characterModel(tile.enemyPlayer.guard ? "guard" : "enemy", tile.enemyPlayer.name));
+    for (const player of state.onlinePlayers.values()) {
+      if (player.x === tile.x && player.y === tile.y) button.appendChild(characterModel("enemy", player.name || "ผู้เล่น"));
+    }
     if (tile.x === state.player.x && tile.y === state.player.y) button.appendChild(characterModel("player", "Arin"));
 
     button.addEventListener("click", () => selectTile(tile));
@@ -599,30 +780,67 @@ function logEvent(message) {
   }
 }
 
-function chooseCity(key) {
+async function chooseCity(key) {
   const city = cities[key];
-  state.homeCity = key;
-  state.player = { ...city.start };
-  state.selected = getTile(city.start.x, city.start.y);
-  state.energy = state.maxEnergy;
+  if (online.ready) {
+    try {
+      const profile = await gameRpc("game_choose_city", { p_city: key });
+      applyProfile(profile);
+      await updatePresence();
+    } catch (error) {
+      onlineError("เลือกเมืองไม่สำเร็จ", error);
+      return;
+    }
+  } else {
+    state.homeCity = key;
+    state.player = { ...city.start };
+    state.energy = state.maxEnergy;
+  }
+  state.selected = getTile(state.player.x, state.player.y);
   elements.cityDialog.close();
   logEvent(`เริ่มต้นที่ ${city.name}: ${city.bonus}`);
   renderAll();
 }
 
-function doMove() {
+async function doMove() {
   const tile = state.selected;
   if (!tile || elements.moveAction.disabled) return;
-  state.player = { x: tile.x, y: tile.y };
-  state.energy = Math.max(0, state.energy - 1);
+  if (online.ready) {
+    try {
+      const profile = await gameRpc("game_move", { p_x: tile.x, p_y: tile.y });
+      applyProfile(profile);
+      await updatePresence();
+    } catch (error) {
+      onlineError("เดินไม่สำเร็จ", error);
+      return;
+    }
+  } else {
+    state.player = { x: tile.x, y: tile.y };
+    state.energy = Math.max(0, state.energy - 1);
+  }
   state.quizReady = false;
   logEvent(`เดินไปช่อง ${tile.x}, ${tile.y} ใช้ Energy 1`);
   renderAll();
 }
 
-function doGather() {
+async function doGather() {
   const tile = getTile(state.player.x, state.player.y);
   if (!tile.resource) return;
+  if (online.ready) {
+    try {
+      const result = await gameRpc("game_gather");
+      const resourceName = tile.resource.name;
+      applyProfile(result.profile);
+      applyWorldTile(result.tile);
+      logEvent(`เก็บ ${resourceName} +${result.amount} (เซิร์ฟเวอร์ยืนยันแล้ว)`);
+      renderAll();
+      renderQuickPanel("inventory");
+      return;
+    } catch (error) {
+      onlineError("เก็บทรัพยากรไม่สำเร็จ", error);
+      return;
+    }
+  }
   const node = tile.resource;
   const amount = Math.min(resourceYield(node), node.quantity);
   state.inventory[node.id] += amount;
@@ -661,24 +879,53 @@ function doAttack() {
   renderAll();
 }
 
-function doClaim() {
+async function doClaim() {
   const tile = getTile(state.player.x, state.player.y);
   if (elements.claimAction.disabled) return;
-  tile.owner = state.homeCity;
-  state.gold += 50;
+  if (online.ready) {
+    try {
+      const result = await gameRpc("game_claim");
+      applyProfile(result.profile);
+      applyWorldTile(result.tile);
+    } catch (error) {
+      onlineError("ยึดพื้นที่ไม่สำเร็จ", error);
+      return;
+    }
+  } else {
+    tile.owner = state.homeCity;
+    state.gold += 50;
+  }
   logEvent(`ยึดช่อง ${tile.x}, ${tile.y} ให้ ${cities[state.homeCity].name} สำเร็จ`);
   renderAll();
+}
+
+async function refreshOnlineResources() {
+  if (!online.ready || Date.now() - online.lastResourceRefresh < 30000) return;
+  online.lastResourceRefresh = Date.now();
+  try {
+    const rows = await gameRpc("game_refresh_resources");
+    if (rows.length) {
+      applyWorldRows(rows);
+      renderAll();
+    }
+  } catch (error) {
+    onlineError("ตรวจทรัพยากรเกิดใหม่ไม่สำเร็จ", error);
+  }
 }
 
 function tick() {
   const now = Date.now();
   let respawned = false;
-  for (const tile of state.tiles) {
-    if (tile.respawnAt && now >= tile.respawnAt) {
-      tile.resource = createResourceForTerrain(tile.terrain);
-      tile.respawnAt = null;
-      logEvent(`${tile.resource.name} T${tile.resource.tier} เกิดใหม่ที่ ${tile.x}, ${tile.y}`);
-      respawned = true;
+  if (online.ready) {
+    void refreshOnlineResources();
+  } else {
+    for (const tile of state.tiles) {
+      if (tile.respawnAt && now >= tile.respawnAt) {
+        tile.resource = createResourceForTerrain(tile.terrain);
+        tile.respawnAt = null;
+        logEvent(`${tile.resource.name} T${tile.resource.tier} เกิดใหม่ที่ ${tile.x}, ${tile.y}`);
+        respawned = true;
+      }
     }
   }
   if (state.combatLock > 0) {
@@ -702,19 +949,47 @@ elements.quizButton.addEventListener("click", () => {
   logEvent(state.quizReady ? "ตอบคำถามถูก: เดินได้ไกลขึ้น 1 ช่องใน action ถัดไป" : "ปิดโบนัส Quiz Move");
   renderAll();
 });
-elements.mountButton.addEventListener("click", () => {
+elements.mountButton.addEventListener("click", async () => {
   if (state.combatLock > 0) {
     logEvent("ติด Combat Lock: ยังสลับสัตว์ขี่ไม่ได้");
     return;
   }
-  state.mountIndex = (state.mountIndex + 1) % mounts.length;
+  const nextMount = (state.mountIndex + 1) % mounts.length;
+  if (online.ready) {
+    try {
+      const profile = await gameRpc("game_save_preferences", {
+        p_offline_guard: state.offlineGuard,
+        p_mount_index: nextMount,
+      });
+      applyProfile(profile);
+    } catch (error) {
+      onlineError("เปลี่ยนสัตว์ขี่ไม่สำเร็จ", error);
+      return;
+    }
+  } else {
+    state.mountIndex = nextMount;
+  }
   logEvent(`สลับเป็น ${mounts[state.mountIndex].name}`);
   renderAll();
   renderQuickPanel("mount");
 });
 elements.logoutButton.addEventListener("click", () => elements.logoutDialog.showModal());
-elements.offlineGuardToggle.addEventListener("change", (event) => {
+elements.offlineGuardToggle.addEventListener("change", async (event) => {
   state.offlineGuard = event.target.checked;
+  if (online.ready) {
+    try {
+      const profile = await gameRpc("game_save_preferences", {
+        p_offline_guard: state.offlineGuard,
+        p_mount_index: state.mountIndex,
+      });
+      applyProfile(profile);
+    } catch (error) {
+      onlineError("บันทึก Offline Guard ไม่สำเร็จ", error);
+      state.offlineGuard = !event.target.checked;
+      renderHud();
+      return;
+    }
+  }
   logEvent(state.offlineGuard ? "เปิด Offline Guard" : "ปิด Offline Guard");
 });
 
@@ -732,7 +1007,14 @@ renderCityDialog();
 state.selected = getTile(state.player.x, state.player.y);
 renderAll();
 renderQuickPanel();
-logEvent("เข้าสู่โลก EduQuest Online Prototype");
+logEvent("กำลังเข้าสู่โลก EduQuest Online");
 logEvent("เลือกช่องบนแผนที่เพื่อเดิน เก็บทรัพยากร โจมตี หรือยึดพื้นที่");
-setTimeout(() => elements.cityDialog.showModal(), 450);
+initializeOnline().then((connected) => {
+  state.selected = getTile(state.player.x, state.player.y);
+  renderAll();
+  renderQuickPanel();
+  if (!connected || !online.profileHasCity) {
+    setTimeout(() => elements.cityDialog.showModal(), 250);
+  }
+});
 setInterval(tick, 1000);

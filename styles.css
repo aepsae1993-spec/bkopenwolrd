@@ -132,6 +132,36 @@ h2 {
   font-size: 0.9rem;
 }
 
+.network-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  padding: 2px 8px;
+  border: 1px solid rgba(246, 237, 216, 0.2);
+  border-radius: 999px;
+  background: rgba(8, 13, 12, 0.62);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.network-status::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #8f9792;
+}
+
+.network-status.online { color: #bdf4cc; }
+.network-status.online::before { background: #5ec77d; box-shadow: 0 0 8px rgba(94, 199, 125, 0.9); }
+.network-status.connecting::before { background: #e9b949; }
+.network-status.warning { color: #ffd59e; }
+.network-status.warning::before { background: #f09c54; }
+.network-status.offline { color: #d1d6d2; }
+
 .city-badge {
   display: inline-flex;
   align-items: center;
