@@ -578,6 +578,7 @@ The playable map uses an isometric 2.5D renderer instead of a flat square grid. 
 - The map keeps mouse/touch drag panning and uses DOM buttons for accessible, deterministic tile selection in the prototype.
 - The camera corrects from the final rendered player position, keeping the active character inside the frame even at a world edge.
 - The area beyond an explored world edge renders as open water, so the playable land reads as part of a larger world rather than a clipped rectangle.
+- Each 5x5 spawn city uses one city-color ground treatment. A luminous perimeter is drawn only around the district's outer diamond, while the surrounding unowned PvP tiles retain their red rim.
 
 ## 26. TODO
 

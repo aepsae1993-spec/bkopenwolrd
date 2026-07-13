@@ -246,14 +246,17 @@ function territoryBoundary(tile) {
   ].some((neighbor) => !neighbor || neighbor.owner !== tile.owner);
 }
 
-function safetyBoundary(tile) {
-  const tileIsPvp = isPvp(tile);
-  return [
-    getTile(tile.x + 1, tile.y),
-    getTile(tile.x - 1, tile.y),
-    getTile(tile.x, tile.y + 1),
-    getTile(tile.x, tile.y - 1),
-  ].some((neighbor) => neighbor && isPvp(neighbor) !== tileIsPvp);
+function cityBoundaryEdges(tile) {
+  if (!tile.owner || isPvp(tile)) return [];
+  const directions = [
+    { name: "north", x: 0, y: -1 },
+    { name: "east", x: 1, y: 0 },
+    { name: "south", x: 0, y: 1 },
+    { name: "west", x: -1, y: 0 },
+  ];
+  return directions
+    .filter((direction) => getTile(tile.x + direction.x, tile.y + direction.y)?.owner !== tile.owner)
+    .map((direction) => direction.name);
 }
 
 function zoneClass(zone) {
@@ -296,6 +299,9 @@ function createIsoScene(tile) {
     return scene;
   }
 
+  // A city is deliberately a single readable district, not a random biome collage.
+  if (tile.zone === "Safe City") return scene;
+
   if (tile.zone === "Center War") {
     scene.classList.add("world-monument");
     scene.append(isoElement("monument-spire"), isoElement("monument-ring"));
@@ -327,6 +333,7 @@ function renderGrid() {
   for (const tile of visibleTiles()) {
     const button = document.createElement("button");
     const position = isoPosition(tile, bounds);
+    const cityEdges = cityBoundaryEdges(tile);
     button.className = `tile ${tile.terrain} ${zoneClass(tile.zone)} ${isPvp(tile) ? "pvp-zone" : "safe-zone"} ${tile.owner ? `owner-${tile.owner}` : "owner-neutral"}`;
     button.type = "button";
     button.dataset.x = tile.x;
@@ -337,14 +344,15 @@ function renderGrid() {
     button.setAttribute("aria-label", `ช่อง ${tile.x},${tile.y}`);
 
     if (tile.zone === "Center War") button.classList.add("center");
-    if (territoryBoundary(tile)) button.classList.add("territory-boundary");
-    if (safetyBoundary(tile)) button.classList.add("safety-boundary", isPvp(tile) ? "pvp-border" : "safe-border");
+    if (territoryBoundary(tile) && isPvp(tile)) button.classList.add("territory-boundary");
+    if (cityEdges.length) button.classList.add("city-boundary");
     if (state.selected && state.selected.x === tile.x && state.selected.y === tile.y) button.classList.add("selected");
     if (distance(state.player, tile) <= range && distance(state.player, tile) > 0) {
       button.classList.add(state.quizReady ? "quiz-reachable" : "reachable");
     }
 
     button.append(isoElement("iso-side"), isoElement("tile-rim"), isoElement("iso-floor"), createIsoScene(tile));
+    for (const edge of cityEdges) button.appendChild(isoElement(`zone-edge edge-${edge}`));
 
     if (tile.resource) button.appendChild(unit(tile.resource.icon, `resource tier-${tile.resource.tier}`));
     if (tile.monster) button.appendChild(unit("☠", "monster"));
