@@ -51,6 +51,15 @@ const mounts = [
   { name: "มังกร", range: 5 },
 ];
 
+const terrainGlyphs = {
+  grass: "🌿",
+  forest: "🌲",
+  desert: "🏜️",
+  mountain: "⛰️",
+  water: "🌊",
+  snow: "❄️",
+};
+
 const state = {
   homeCity: "north",
   selected: null,
@@ -204,13 +213,23 @@ function renderGrid() {
 
     const glyph = document.createElement("span");
     glyph.className = "glyph";
-    glyph.textContent = tile.city ? cities[tile.city].glyph : tile.zone === "Center War" ? "✦" : "";
+    if (tile.city) {
+      glyph.classList.add("city-glyph");
+      glyph.dataset.label = cities[tile.city].glyph;
+      glyph.textContent = "🏰";
+    } else if (tile.zone === "Center War") {
+      glyph.classList.add("center-glyph");
+      glyph.textContent = "✦";
+    } else {
+      glyph.classList.add("terrain-glyph");
+      glyph.textContent = terrainGlyphs[tile.terrain] || "·";
+    }
     button.appendChild(glyph);
 
-    if (tile.resource) button.appendChild(unit("◆", "resource"));
-    if (tile.monster) button.appendChild(unit("M", "monster"));
-    if (tile.enemyPlayer) button.appendChild(unit(tile.enemyPlayer.guard ? "G" : "P", tile.enemyPlayer.guard ? "guard" : "enemy-player"));
-    if (tile.x === state.player.x && tile.y === state.player.y) button.appendChild(unit("You", "player"));
+    if (tile.resource) button.appendChild(unit("💎", "resource"));
+    if (tile.monster) button.appendChild(unit("☠", "monster"));
+    if (tile.enemyPlayer) button.appendChild(unit(tile.enemyPlayer.guard ? "🛡" : "⚔", tile.enemyPlayer.guard ? "guard" : "enemy-player"));
+    if (tile.x === state.player.x && tile.y === state.player.y) button.appendChild(unit("★", "player"));
 
     button.addEventListener("click", () => selectTile(tile));
     elements.grid.appendChild(button);
