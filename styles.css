@@ -1439,7 +1439,8 @@ dd {
 
 .iso-side {
   z-index: 1;
-  transform: translateY(12px);
+  /* Keep the gameplay board geometry inside one diamond tile. */
+  transform: none;
   background: #416738;
 }
 
